@@ -1,12 +1,9 @@
 directory: C:\\Users\\dlarsen.NI\\Music
 exclude:
-  - Nintendo
-  - Eleanor Larsen
-  - Stephen Larsen
   - Afterglow
   - Andrea Bocelli
   - Andrew Maxfield
-  - Antonio Luciano Vivaldi
+  - Antonio Lucio Vivaldi
   - Berlin Symphony Orchestra
   - Bob Carlisle
   - Christmas - What's it Gonna Be, Santa
@@ -16,6 +13,7 @@ exclude:
   - Danny Baranowsky
   - Dark Moor
   - Dvorak
+  - Eleanor Larsen
   - Frederic Chopin
   - 15 - Once There Were Some Snowmen.mp3
   - 16 - Once There Were Some Snowmen.mp3
@@ -44,16 +42,18 @@ exclude:
   - Lonestar
   - Luciano Pavarotti
   - Ludwig van Beethoven
-  - Marvin Golstein
+  - Marvin Goldstein
   - Merrill Jenson
   - As I Am
   - Safe Harbors
   - The Collection, Volume I
   - The Sum of All Grace
+  - Nintendo
   - Northridge Choir
   - Orem Institute of Religion Latter-day Choir
   - Paul Cardall
   - Scripture Scouts
+  - Stephen Larsen
   - Team Larsen
   - The Brigham Youn University Men's Chorus
   - The Five Browns
@@ -90,9 +90,11 @@ exclude:
   - VeggieTales
   - Yasunori Mitsuda
   # Christmas
+  - A Winter Symphony
   - George Frideric Handel
   - Noel
   - A Fresh Aire Christmas
   - Christmas
   - Christmas Portrait
+  - Winter Serenade
   - Trans-Siberian Orchestra

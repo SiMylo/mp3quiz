@@ -91,12 +91,21 @@ def show_info(screen, font, song):
 
 
 def game_loop(library):
+    import ctypes
+
     pygame.init()
     pygame.mixer.init()
     # Shrink window height to just below the Exit button
     screen = pygame.display.set_mode((1200, 210))
     pygame.display.set_caption("MP3 Quiz")
     font = pygame.font.SysFont(None, 36)
+
+    # Bring window to front (Windows only)
+    try:
+        hwnd = pygame.display.get_wm_info()["window"]
+        ctypes.windll.user32.SetForegroundWindow(hwnd)
+    except Exception:
+        pass
 
     correct_rect = pygame.Rect(400, 100, 180, 40)
     incorrect_rect = pygame.Rect(620, 100, 180, 40)
