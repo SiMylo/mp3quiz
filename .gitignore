@@ -1,5 +1,6 @@
 # Cache files
 mp3quiz_cache.yml
+config.yml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
