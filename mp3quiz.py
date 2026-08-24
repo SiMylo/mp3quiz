@@ -11,13 +11,14 @@ CACHE_VERSION = 3
 
 
 class MusicLibrary:
-    def __init__(self, directory, exclude=None):
+    def __init__(self, directory, exclude=None, config_path=None):
         self.directory = directory
         script_dir = os.path.dirname(os.path.abspath(__file__))
         self.cache_file = os.path.join(script_dir, "mp3quiz_cache.yml")
+        self.config_path = config_path
         self.exclude = exclude or []
         self.songs = []
-        self.timer_enabled = False
+        self.timer_enabled = True
         self._cache_entries = {}
         self.refresh_index()
         self.set_selected_songs(self.default_selection())
@@ -123,6 +124,18 @@ class MusicLibrary:
             if not any(ex in os.path.normpath(song["filepath"]) for ex in self.exclude)
         ]
 
+    def save_selection(self, selected_paths):
+        if not self.config_path:
+            return
+        with open(self.config_path, "r", encoding="utf-8") as f:
+            config_text = f.read()
+        config = yaml.safe_load(config_text) or {}
+        config["exclude"] = selection_exclusions(
+            build_selection_tree(self), selected_paths, self.directory
+        )
+        with open(self.config_path, "w", encoding="utf-8") as f:
+            yaml.safe_dump(config, f, allow_unicode=True, sort_keys=False)
+
     def set_selected_songs(self, songs):
         self.selected_songs = list(songs)
         self._unused_indexes = list(range(len(self.selected_songs)))
@@ -200,6 +213,23 @@ def toggle_tree_node(node, selected_paths):
             selected_paths.discard(song["filepath"])
 
 
+def selection_exclusions(node, selected_paths, directory):
+    songs = list(tree_songs(node))
+    if not songs or all(song["filepath"] in selected_paths for song in songs):
+        return []
+    if not any(song["filepath"] in selected_paths for song in songs):
+        if node["path"]:
+            if "children" in node:
+                return [os.path.normpath(node["path"])]
+            return [os.path.relpath(node["path"], directory)]
+        return []
+
+    exclusions = []
+    for child in node.get("children", {}).values():
+        exclusions.extend(selection_exclusions(child, selected_paths, directory))
+    return exclusions
+
+
 def visible_tree_nodes(node, expanded, depth=0):
     for child in sorted(
         node.get("children", {}).values(), key=lambda item: item["name"].lower()
@@ -240,6 +270,7 @@ def choose_songs(library, current_songs=None):
     top = 70
     bottom = 640
     start_rect = pygame.Rect(900, 650, 160, 40)
+    save_rect = pygame.Rect(720, 650, 160, 40)
     timer_rect = pygame.Rect(20, 650, 220, 40)
     clock = pygame.time.Clock()
     status = ""
@@ -264,6 +295,13 @@ def choose_songs(library, current_songs=None):
                         )
                         return True
                     status = "Select at least one song"
+                    continue
+                if save_rect.collidepoint(event.pos):
+                    if selected_paths:
+                        library.save_selection(selected_paths)
+                        status = "Selection saved"
+                    else:
+                        status = "Select at least one song"
                     continue
                 if timer_rect.collidepoint(event.pos):
                     library.timer_enabled = not library.timer_enabled
@@ -311,6 +349,8 @@ def choose_songs(library, current_songs=None):
         button_color = (55, 125, 190) if selected_paths else (70, 74, 80)
         pygame.draw.rect(screen, button_color, start_rect)
         screen.blit(font.render("To Quiz", True, (255, 255, 255)), (945, 658))
+        pygame.draw.rect(screen, (80, 135, 165), save_rect)
+        screen.blit(font.render("Save", True, (255, 255, 255)), (save_rect.x + 55, 658))
         timer_color = (65, 155, 105) if library.timer_enabled else (70, 74, 80)
         pygame.draw.rect(screen, timer_color, timer_rect)
         timer_label = "Timer: On" if library.timer_enabled else "Timer: Off"
@@ -396,6 +436,13 @@ def game_loop(library):
 
     while running:
         screen.fill((30, 30, 30))
+        if elapsed_guess_time is not None:
+            current_elapsed = elapsed_guess_time
+        elif library.timer_enabled and track_started_at is not None:
+            current_elapsed = time.monotonic() - track_started_at
+        else:
+            current_elapsed = None
+
         # Show Info button (blue or greyed out if already pressed)
         if show_song_info:
             pygame.draw.rect(screen, (128, 128, 128), info_rect)
@@ -433,6 +480,14 @@ def game_loop(library):
             incorrect_text.get_rect(center=incorrect_rect.center),
         )
 
+        if not show_song_info and current_elapsed is not None:
+            timer_surface = font.render(
+                f"Guess time: {format_elapsed(current_elapsed)}",
+                True,
+                (255, 220, 120),
+            )
+            screen.blit(timer_surface, (760, 55))
+
         # Draw score in the same line as Exit button, left side
         # Adjust score position for new window height
         if total_played > 0:
@@ -453,7 +508,7 @@ def game_loop(library):
             artwork = artwork_cache.setdefault(
                 playing_song["filepath"], load_artwork(playing_song)
             )
-            show_info(screen, font, playing_song, artwork, elapsed_guess_time)
+            show_info(screen, font, playing_song, artwork, current_elapsed)
 
         pygame.display.flip()
 
@@ -505,7 +560,7 @@ def main():
         config = yaml.safe_load(f)
     directory = config.get("directory", r"C:\Users\dlarsen.NI\Music")
     exclude = config.get("exclude", [])
-    library = MusicLibrary(directory, exclude=exclude)
+    library = MusicLibrary(directory, exclude=exclude, config_path=config_path)
     if not choose_songs(library):
         return
     game_loop(library)

@@ -7,13 +7,18 @@ individual file to include or exclude it from the current quiz. Folder boxes
 show a partial state when only some files below them are selected. The
 selection can be reopened from the quiz window with **Select Music**.
 
-Selections last for the current run only. They are not written to
-`config.yml`.
+The **Save** button writes the current selection to the `exclude` list in
+`config.yml`. **To Quiz** applies the current selection for the quiz without
+writing the configuration. A completely unchecked folder is saved as one
+folder rule; partially selected folders are represented by narrower folder or
+file rules. This keeps the saved configuration compact while preserving
+individual file selections.
 
-The selector also includes a session-only timer checkbox. When enabled, the
-timer starts when a track begins playing and stops when **Show Info** is
-pressed. The final guessing time is shown with the answer. Reopening the
-selector does not reset the current track's timer.
+The selector also includes a session-only timer checkbox, which defaults to
+on. When enabled, the timer starts when a track begins playing and stops when
+**Show Info** is pressed. The elapsed time is visible before **Show Info**, and
+the final guessing time is shown with the answer. Reopening the selector does
+not reset the current track's timer.
 
 Track information displays the Artist, Album, and Title fields alongside the
 file's embedded artwork. If an album tag is missing, the containing folder is
@@ -31,8 +36,8 @@ exclude:
 
 - `directory`: The root folder to search for mp3 files.
 - `exclude`: List of folder or file names to leave unchecked by default. Any
-  path containing these names starts disabled, but can be enabled manually for
-  a session.
+  path containing these names starts disabled. The selector updates this list
+  when **Save** is pressed, using compact relative folder/file rules.
 
 Place `config.yml` in the same directory as `mp3quiz.py`.
 
