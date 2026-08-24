@@ -12,6 +12,19 @@ files = [
 ]
 
 [[package]]
+name = "mutagen"
+version = "1.48.1"
+description = "read and write audio tags for many formats"
+optional = false
+python-versions = "<4,>=3.10"
+groups = ["main"]
+markers = "python_version < \"4\""
+files = [
+    {file = "mutagen-1.48.1-py3-none-any.whl", hash = "sha256:4f077fe87d3fc7fba259aa63d8c026b18382ca6a42ef37c61e16f1b1b5b82fe7"},
+    {file = "mutagen-1.48.1.tar.gz", hash = "sha256:8f95637ab9f6f305cec6bd1294e197debe207998e3e068596563c74f86b0a173"},
+]
+
+[[package]]
 name = "pygame"
 version = "2.6.1"
 description = "Python Game Development"
@@ -147,4 +160,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13"
-content-hash = "3a1d72765ca2f4d28c9670f2887d901e8a83a5636cb3b3b576ff847224a8664f"
+content-hash = "581778acf7c9cbeab2e622530e1b0e5cb5b94e758325830fc63aca7118dae23d"
