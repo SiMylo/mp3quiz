@@ -12,6 +12,7 @@ dependencies = [
     "pyyaml (>=6.0.2,<7.0.0)",
     "mutagen (>=1.48.1,<2.0.0) ; python_version >= \"3.13\" and python_version < \"4\"",
 ]
+scripts = { mp3quiz = "mp3quiz:main" }
 
 
 [build-system]

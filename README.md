@@ -49,6 +49,8 @@ Embedded artwork is read with the Poetry-managed `mutagen` dependency. To
 install or refresh the project environment, run `poetry install` from the
 project directory.
 
+Launch the quiz with `poetry run mp3quiz`.
+
 ## Library cache
 
 The cache stores artist and title metadata together with each MP3's path, size,
