@@ -121,7 +121,10 @@ class MusicLibrary:
         return [
             song
             for song in self.songs
-            if not any(ex in os.path.normpath(song["filepath"]) for ex in self.exclude)
+            if not any(
+                path_contains_exclusion(song["filepath"], exclusion)
+                for exclusion in self.exclude
+            )
         ]
 
     def save_selection(self, selected_paths):
@@ -211,6 +214,18 @@ def toggle_tree_node(node, selected_paths):
             selected_paths.add(song["filepath"])
         else:
             selected_paths.discard(song["filepath"])
+
+
+def path_contains_exclusion(filepath, exclusion):
+    filepath_parts = os.path.normcase(os.path.normpath(filepath)).split(os.sep)
+    exclusion_parts = os.path.normcase(os.path.normpath(exclusion)).split(os.sep)
+    if not exclusion_parts or exclusion_parts == ["."]:
+        return False
+    width = len(exclusion_parts)
+    return any(
+        filepath_parts[index : index + width] == exclusion_parts
+        for index in range(len(filepath_parts) - width + 1)
+    )
 
 
 def selection_exclusions(node, selected_paths, directory):

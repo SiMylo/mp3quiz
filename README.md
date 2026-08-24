@@ -36,8 +36,8 @@ exclude:
 
 - `directory`: The root folder to search for mp3 files.
 - `exclude`: List of folder or file names to leave unchecked by default. Any
-  path containing these names starts disabled. The selector updates this list
-  when **Save** is pressed, using compact relative folder/file rules.
+  matching folder or file path components start disabled. The selector updates
+  this list when **Save** is pressed, using compact relative folder/file rules.
 
 Place `config.yml` in the same directory as `mp3quiz.py`.
 
