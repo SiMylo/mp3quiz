@@ -1,10 +1,13 @@
 import os
+from io import BytesIO
 from hsaudiotag import auto
+from mutagen.id3 import ID3, ID3NoHeaderError
 import pygame
 import random
+import time
 import yaml
 
-CACHE_VERSION = 2
+CACHE_VERSION = 3
 
 
 class MusicLibrary:
@@ -14,6 +17,7 @@ class MusicLibrary:
         self.cache_file = os.path.join(script_dir, "mp3quiz_cache.yml")
         self.exclude = exclude or []
         self.songs = []
+        self.timer_enabled = False
         self._cache_entries = {}
         self.refresh_index()
         self.set_selected_songs(self.default_selection())
@@ -80,7 +84,13 @@ class MusicLibrary:
                 f"Warning: Missing artist or title in file: {filepath} (artist: {artist}, title: {title})"
             )
             return None
-        return {"artist": artist, "title": title, "filepath": filepath}
+        album = getattr(audio, "album", None) or os.path.basename(os.path.dirname(filepath))
+        return {
+            "artist": artist,
+            "album": album,
+            "title": title,
+            "filepath": filepath,
+        }
 
     def save_cache(self):
         with open(self.cache_file, "w", encoding="utf-8") as f:
@@ -125,6 +135,19 @@ class MusicLibrary:
         idx = random.choice(self._unused_indexes)
         self._unused_indexes.remove(idx)
         return self.selected_songs[idx]
+
+
+def load_artwork(song):
+    try:
+        tags = ID3(song["filepath"])
+    except (ID3NoHeaderError, OSError):
+        return None
+    for artwork in tags.getall("APIC"):
+        try:
+            return pygame.image.load(BytesIO(artwork.data)).convert_alpha()
+        except pygame.error:
+            return None
+    return None
 
 
 def build_selection_tree(library):
@@ -217,6 +240,7 @@ def choose_songs(library, current_songs=None):
     top = 70
     bottom = 640
     start_rect = pygame.Rect(900, 650, 160, 40)
+    timer_rect = pygame.Rect(20, 650, 220, 40)
     clock = pygame.time.Clock()
     status = ""
 
@@ -240,6 +264,9 @@ def choose_songs(library, current_songs=None):
                         )
                         return True
                     status = "Select at least one song"
+                    continue
+                if timer_rect.collidepoint(event.pos):
+                    library.timer_enabled = not library.timer_enabled
                     continue
                 if top <= event.pos[1] < bottom:
                     row_index = (event.pos[1] - top + scroll) // row_height
@@ -283,7 +310,11 @@ def choose_songs(library, current_songs=None):
         screen.set_clip(None)
         button_color = (55, 125, 190) if selected_paths else (70, 74, 80)
         pygame.draw.rect(screen, button_color, start_rect)
-        screen.blit(font.render("Start Quiz", True, (255, 255, 255)), (945, 658))
+        screen.blit(font.render("To Quiz", True, (255, 255, 255)), (945, 658))
+        timer_color = (65, 155, 105) if library.timer_enabled else (70, 74, 80)
+        pygame.draw.rect(screen, timer_color, timer_rect)
+        timer_label = "Timer: On" if library.timer_enabled else "Timer: Off"
+        screen.blit(font.render(timer_label, True, (255, 255, 255)), (55, 658))
         if status:
             screen.blit(font.render(status, True, (235, 170, 95)), (20, 655))
         pygame.display.flip()
@@ -296,13 +327,33 @@ def play_song(song):
     pygame.mixer.music.play()
 
 
-def show_info(screen, font, song):
-    # Display artist and title info for the currently playing song, centered
-    info_text = f"{song['artist']} - {song['title']}"
-    info_surface = font.render(info_text, True, (255, 255, 0))
-    screen_width = screen.get_width()
-    text_rect = info_surface.get_rect(center=(screen_width // 2, 30))
-    screen.blit(info_surface, text_rect)
+def format_elapsed(seconds):
+    total_seconds = int(seconds)
+    return f"{total_seconds // 60:02d}:{total_seconds % 60:02d}"
+
+
+def show_info(screen, font, song, artwork, elapsed=None):
+    artwork_rect = pygame.Rect(80, 220, 240, 240)
+    if artwork:
+        image = pygame.transform.smoothscale(artwork, artwork_rect.size)
+        screen.blit(image, artwork_rect)
+    else:
+        pygame.draw.rect(screen, (70, 74, 80), artwork_rect)
+        placeholder = font.render("No artwork", True, (210, 210, 210))
+        screen.blit(placeholder, placeholder.get_rect(center=artwork_rect.center))
+
+    metadata_x = 400
+    labels = [
+        ("Artist", song.get("artist", "Unknown")),
+        ("Album", song.get("album", "Unknown")),
+        ("Title", song.get("title", "Unknown")),
+    ]
+    for index, (label, value) in enumerate(labels):
+        text = font.render(f"{label}: {value}", True, (245, 245, 245))
+        screen.blit(text, (metadata_x, 230 + index * 48))
+    if elapsed is not None:
+        timer_text = font.render(f"Guess time: {format_elapsed(elapsed)}", True, (255, 220, 120))
+        screen.blit(timer_text, (metadata_x, 390))
 
 
 def game_loop(library):
@@ -320,16 +371,19 @@ def game_loop(library):
     except Exception:
         pass
 
-    correct_rect = pygame.Rect(400, 100, 180, 40)
-    incorrect_rect = pygame.Rect(620, 100, 180, 40)
+    select_rect = pygame.Rect(20, 50, 200, 40)
     info_rect = pygame.Rect(500, 50, 200, 40)
-    select_rect = pygame.Rect(720, 50, 200, 40)
+    correct_rect = pygame.Rect(380, 100, 220, 40)
+    incorrect_rect = pygame.Rect(600, 100, 220, 40)
     # Move Exit button all the way to the right, same vertical as score
     exit_rect = pygame.Rect(1200 - 220, 150, 200, 40)
     running = True
 
     show_song_info = False
     playing_song = None
+    track_started_at = None
+    elapsed_guess_time = None
+    artwork_cache = {}
 
     # Score tracking
     correct_guesses = 0
@@ -338,6 +392,7 @@ def game_loop(library):
     # Automatically play a song at the beginning
     playing_song = library.next_random()
     play_song(playing_song)
+    track_started_at = time.monotonic()
 
     while running:
         screen.fill((30, 30, 30))
@@ -348,11 +403,14 @@ def game_loop(library):
         else:
             pygame.draw.rect(screen, (70, 130, 180), info_rect)
             info_text_surface = font.render("Show Info", True, (255, 255, 255))
-        screen.blit(info_text_surface, (info_rect.x + 40, info_rect.y + 5))
+        screen.blit(
+            info_text_surface,
+            info_text_surface.get_rect(center=info_rect.center),
+        )
 
         pygame.draw.rect(screen, (90, 105, 125), select_rect)
         select_text = font.render("Select Music", True, (255, 255, 255))
-        screen.blit(select_text, (select_rect.x + 28, select_rect.y + 5))
+        screen.blit(select_text, select_text.get_rect(center=select_rect.center))
 
         # Mark Correct button (greyed out if info not shown)
         if show_song_info:
@@ -361,7 +419,7 @@ def game_loop(library):
         else:
             pygame.draw.rect(screen, (128, 128, 128), correct_rect)
             correct_text = font.render("Mark Correct", True, (180, 180, 180))
-        screen.blit(correct_text, (correct_rect.x + 10, correct_rect.y + 5))
+        screen.blit(correct_text, correct_text.get_rect(center=correct_rect.center))
 
         # Mark Incorrect button (greyed out if info not shown)
         if show_song_info:
@@ -370,7 +428,10 @@ def game_loop(library):
         else:
             pygame.draw.rect(screen, (128, 128, 128), incorrect_rect)
             incorrect_text = font.render("Mark Incorrect", True, (180, 180, 180))
-        screen.blit(incorrect_text, (incorrect_rect.x + 10, incorrect_rect.y + 5))
+        screen.blit(
+            incorrect_text,
+            incorrect_text.get_rect(center=incorrect_rect.center),
+        )
 
         # Draw score in the same line as Exit button, left side
         # Adjust score position for new window height
@@ -389,7 +450,10 @@ def game_loop(library):
 
         # Show info for currently playing song
         if show_song_info and playing_song:
-            show_info(screen, font, playing_song)
+            artwork = artwork_cache.setdefault(
+                playing_song["filepath"], load_artwork(playing_song)
+            )
+            show_info(screen, font, playing_song, artwork, elapsed_guess_time)
 
         pygame.display.flip()
 
@@ -400,21 +464,33 @@ def game_loop(library):
                 # Only allow Show Info if not already pressed
                 if not show_song_info and info_rect.collidepoint(event.pos):
                     show_song_info = True
+                    if library.timer_enabled and track_started_at is not None:
+                        elapsed_guess_time = time.monotonic() - track_started_at
+                    else:
+                        elapsed_guess_time = None
+                    screen = create_window((1200, 500), "MP3 Quiz")
                 elif select_rect.collidepoint(event.pos):
                     if not choose_songs(library, library.selected_songs):
                         running = False
                     else:
-                        screen = create_window((1200, 210), "MP3 Quiz")
+                        size = (1200, 500) if show_song_info else (1200, 210)
+                        screen = create_window(size, "MP3 Quiz")
                 elif show_song_info and correct_rect.collidepoint(event.pos):
                     correct_guesses += 1
                     total_played += 1
                     playing_song = library.next_random()
                     play_song(playing_song)
+                    track_started_at = time.monotonic()
+                    elapsed_guess_time = None
+                    screen = create_window((1200, 210), "MP3 Quiz")
                     show_song_info = False
                 elif show_song_info and incorrect_rect.collidepoint(event.pos):
                     total_played += 1
                     playing_song = library.next_random()
                     play_song(playing_song)
+                    track_started_at = time.monotonic()
+                    elapsed_guess_time = None
+                    screen = create_window((1200, 210), "MP3 Quiz")
                     show_song_info = False
                 elif exit_rect.collidepoint(event.pos):
                     running = False

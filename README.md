@@ -10,6 +10,15 @@ selection can be reopened from the quiz window with **Select Music**.
 Selections last for the current run only. They are not written to
 `config.yml`.
 
+The selector also includes a session-only timer checkbox. When enabled, the
+timer starts when a track begins playing and stops when **Show Info** is
+pressed. The final guessing time is shown with the answer. Reopening the
+selector does not reset the current track's timer.
+
+Track information displays the Artist, Album, and Title fields alongside the
+file's embedded artwork. If an album tag is missing, the containing folder is
+used. Files without embedded artwork display a simple placeholder.
+
 ## Configuration
 
 Make `config.yml` to set the music directory and exclude folders or files:
@@ -26,6 +35,10 @@ exclude:
   a session.
 
 Place `config.yml` in the same directory as `mp3quiz.py`.
+
+Embedded artwork is read with the Poetry-managed `mutagen` dependency. To
+install or refresh the project environment, run `poetry install` from the
+project directory.
 
 ## Library cache
 
