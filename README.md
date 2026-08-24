@@ -41,6 +41,10 @@ exclude:
 
 Place `config.yml` in the same directory as `mp3quiz.py`.
 
+If `config.yml` does not exist when MP3 Quiz starts, a folder chooser opens so
+you can select the music library. The selected folder is saved as the initial
+`directory` in a new `config.yml`.
+
 Embedded artwork is read with the Poetry-managed `mutagen` dependency. To
 install or refresh the project environment, run `poetry install` from the
 project directory.

@@ -569,8 +569,24 @@ def game_loop(library):
 
 
 def main():
-    # Load config.yml for music directory and exclusions
     config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.yml")
+    if not os.path.exists(config_path):
+        import tkinter as tk
+        from tkinter import filedialog
+
+        root = tk.Tk()
+        root.withdraw()
+        directory = filedialog.askdirectory(
+            title="Select your music library folder"
+        )
+        root.destroy()
+        if not directory:
+            return
+        config = {"directory": directory, "exclude": []}
+        with open(config_path, "w", encoding="utf-8") as f:
+            yaml.safe_dump(config, f, sort_keys=False)
+
+    # Load config.yml for music directory and exclusions
     with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
     directory = config.get("directory", r"C:\Users\dlarsen.NI\Music")
